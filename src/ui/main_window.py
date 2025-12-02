@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from PyQt6.QtCore import Qt, QThreadPool, pyqtSlot, QTimer, QPoint
-from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QPixmap, QImage, QPalette
+from PyQt6.QtGui import QAction, QColor, QFont, QIcon, QPixmap, QImage, QPalette, QCursor
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QColorDialog, QComboBox, QFileDialog,
     QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
@@ -107,13 +107,40 @@ class StampComboBox(QComboBox):
             self.preview_label.setPixmap(scaled_pixmap)
             self.preview_label.adjustSize()
 
-            # Позиционируем превью справа от ComboBox
-            combo_pos = self.mapToGlobal(self.rect().topRight())
-            preview_x = combo_pos.x() + 10
-            preview_y = combo_pos.y()
+            # Получаем главное окно и координаты курсора
+            main_window = self.window()
+            cursor_pos = QCursor.pos()
+            
+            # Переводим глобальные координаты курсора в локальные координаты главного окна
+            local_pos = main_window.mapFromGlobal(cursor_pos)
 
-            self.preview_label.move(preview_x, preview_y)
+            # Начальная позиция (справа снизу от курсора)
+            x = local_pos.x() + 20
+            y = local_pos.y() + 20
+
+            # Размеры
+            preview_w = self.preview_label.width()
+            preview_h = self.preview_label.height()
+            window_w = main_window.width()
+            window_h = main_window.height()
+
+            # Проверка границ справа
+            if x + preview_w > window_w:
+                # Сдвигаем влево от курсора
+                x = local_pos.x() - preview_w - 20
+
+            # Проверка границ снизу
+            if y + preview_h > window_h:
+                # Сдвигаем вверх от курсора
+                y = local_pos.y() - preview_h - 20
+
+            # Финальная проверка на левую и верхнюю границы
+            x = max(10, x)
+            y = max(10, y)
+
+            self.preview_label.move(x, y)
             self.preview_label.show()
+            self.preview_label.raise_()
 
         except Exception as e:
             print(f"Ошибка показа превью: {e}")
@@ -748,6 +775,7 @@ class MainWindow(QMainWindow):
         h4a = QHBoxLayout()
         h4a.addWidget(QLabel("Быстрый выбор:"))
         self.stamps_combo = StampComboBox(self)
+        self.stamps_combo.setMaximumWidth(250)
         self.stamps_combo.addItem("-- Выберите печать --", "")
         self.stamps_combo.currentIndexChanged.connect(self._on_stamp_selected)
         h4a.addWidget(self.stamps_combo)
@@ -776,6 +804,19 @@ class MainWindow(QMainWindow):
         self.stamp_file_btn.clicked.connect(self._browse_stamp)
         h4.addWidget(self.stamp_file_btn)
         g4_layout.addLayout(h4)
+
+        # Масштаб печати
+        h4b = QHBoxLayout()
+        h4b.addWidget(QLabel("Масштаб печати:"))
+        self.stamp_scale = QSpinBox()
+        self.stamp_scale.setRange(10, 200)
+        self.stamp_scale.setValue(100)
+        self.stamp_scale.setSuffix(" %")
+        self.stamp_scale.setFixedWidth(80)
+        self.stamp_scale.setToolTip("Регулирует размер печати на изображениях (100% = оригинальный размер)")
+        h4b.addWidget(self.stamp_scale)
+        h4b.addStretch()
+        g4_layout.addLayout(h4b)
 
         layout.addWidget(group4)
         
@@ -1048,35 +1089,16 @@ class MainWindow(QMainWindow):
         group1 = QGroupBox("Предпросмотр результата")
         g1_layout = QVBoxLayout(group1)
 
-        # Используем новый виджет с масштабированием
-        self.preview_widget = ZoomableImageWidget()
-        self.preview_widget.setMinimumHeight(400)
-        self.preview_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
-        # Устанавливаем начальный текст через image_view (для совместимости)
-        self.preview_widget.image_view.scene.addText("Нажмите 'Обновить' для просмотра результата")
-
-        g1_layout.addWidget(self.preview_widget)
-
-        btn_layout = QHBoxLayout()
-        # Кнопка включения интерактивного режима
-        self.interactive_mode_btn = QPushButton("🎯 Режим редактирования")
-        self.interactive_mode_btn.setCheckable(True)
-        self.interactive_mode_btn.setMaximumWidth(200)
-        self.interactive_mode_btn.clicked.connect(self._toggle_interactive_mode)
-        btn_layout.addWidget(self.interactive_mode_btn)
-
-        btn_layout.addStretch()
+        # Интерактивный виджет (по умолчанию)
+        self.interactive_preview = InteractivePreviewWidget()
+        self.interactive_preview.offsetsChanged.connect(self._on_offsets_changed)
+        
+        # Добавляем кнопку обновления прямо в панель управления виджета
         self.preview_btn = QPushButton("Обновить предпросмотр")
         self.preview_btn.clicked.connect(self._update_preview)
-        btn_layout.addWidget(self.preview_btn)
-        g1_layout.addLayout(btn_layout)
-
-        # Интерактивный виджет (создаём, но скрываем)
-        self.interactive_preview = InteractivePreviewWidget()
-        self.interactive_preview.setVisible(False)
-        self.interactive_preview.offsetsChanged.connect(self._on_offsets_changed)
-        g1_layout.insertWidget(0, self.interactive_preview)
+        self.interactive_preview.addRightWidget(self.preview_btn)
+        
+        g1_layout.addWidget(self.interactive_preview)
 
         layout.addWidget(group1, 3)  # Даем больший вес для растягивания
 
@@ -1208,6 +1230,7 @@ class MainWindow(QMainWindow):
             self.output_folder_edit.setText(s.get("paths", "output_folder", default=""))
             self.excel_file_edit.setText(s.get("paths", "excel_file", default=""))
             self.stamp_file_edit.setText(s.get("paths", "stamp_file", default=""))
+            self.stamp_scale.setValue(s.get("paths", "stamp_scale", default=100))
 
             self.inn_checkbox.setChecked(s.get("excel_fields", "inn", "enabled", default=True))
             self.inn_column.setValue(s.get("excel_fields", "inn", "column", default=22))
@@ -1272,6 +1295,7 @@ class MainWindow(QMainWindow):
             s.set("paths", "output_folder", self.output_folder_edit.text())
             s.set("paths", "excel_file", self.excel_file_edit.text())
             s.set("paths", "stamp_file", self.stamp_file_edit.text())
+            s.set("paths", "stamp_scale", self.stamp_scale.value())
 
             s.set("excel_fields", "inn", "enabled", self.inn_checkbox.isChecked())
             s.set("excel_fields", "inn", "column", self.inn_column.value())
@@ -1479,6 +1503,7 @@ class MainWindow(QMainWindow):
             "text_color": "#000000",
             "format": "png" if self.format_png.isChecked() else ("jpg" if self.format_jpg.isChecked() else "pdf"),
             "stamp_enabled": self.stamp_checkbox.isChecked(),
+            "stamp_scale": self.stamp_scale.value() / 100.0,  # Конвертируем проценты в коэффициент
             "excel_fields": {
                 "inn": {"enabled": self.inn_checkbox.isChecked()},
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
@@ -1505,23 +1530,6 @@ class MainWindow(QMainWindow):
         print(f"DEBUG: _get_fixed_texts() returning: {texts}")
         return texts
 
-    def _toggle_interactive_mode(self, checked: bool):
-        """Переключение между обычным и интерактивным превью."""
-        if checked:
-            # Включаем интерактивный режим
-            self.preview_widget.setVisible(False)
-            self.interactive_preview.setVisible(True)
-            self.interactive_mode_btn.setText("🔍 Обычный просмотр")
-            # Обновляем интерактивное превью
-            self._update_interactive_preview()
-        else:
-            # Возвращаемся к обычному режиму
-            self.interactive_preview.setVisible(False)
-            self.preview_widget.setVisible(True)
-            self.interactive_mode_btn.setText("🎯 Режим редактирования")
-            # Сохраняем смещения
-            self._save_offsets()
-
     def _on_offsets_changed(self, offsets: Dict):
         """Обработка изменения смещений элементов."""
         # Автоматическое сохранение смещений
@@ -1536,12 +1544,14 @@ class MainWindow(QMainWindow):
         self.settings.save()
         self._log(f"Сохранены смещения: {len(offsets)} элементов")
 
-    def _update_interactive_preview(self):
-        """Обновление интерактивного превью с перемещаемыми элементами."""
+    def _update_preview(self):
+        """Обновление предпросмотра (интерактивный режим)."""
         if not self._image_files:
+            self._log("Нет файлов для предпросмотра")
             return
 
         if not self.excel_reader or self.excel_reader.get_record_count() == 0:
+            self._log("Нет данных из Excel")
             return
 
         # Находим тестовый файл
@@ -1556,6 +1566,7 @@ class MainWindow(QMainWindow):
                 break
 
         if not sample_file:
+            self._log("Нет совпадений между файлами и данными Excel")
             return
 
         settings = self._get_processor_settings()
@@ -1619,54 +1630,6 @@ class MainWindow(QMainWindow):
         else:
             self._log("Ошибка генерации интерактивного превью")
 
-    def _update_preview(self):
-        """Обновление предпросмотра."""
-        if not self._image_files:
-            self.preview_widget.setText("Нет файлов для предпросмотра\nВыберите папку с изображениями")
-            return
-
-        if not self.excel_reader or self.excel_reader.get_record_count() == 0:
-            self.preview_widget.setText("Нет данных из Excel\nВыберите файл Excel")
-            return
-
-        sample_file = None
-        sample_data = None
-
-        for img_path in self._image_files:
-            data = self.excel_reader.get_data_for_file(img_path)
-            if data:
-                sample_file = img_path
-                sample_data = data
-                break
-
-        if not sample_file:
-            self.preview_widget.setText("Нет совпадений\nмежду файлами и данными Excel")
-            return
-
-        settings = self._get_processor_settings()
-        processor = ImageProcessor(settings)
-
-        stamp_path = self.stamp_file_edit.text()
-        if stamp_path and self.stamp_checkbox.isChecked():
-            success, msg = processor.load_stamp(stamp_path)
-            if not success:
-                self._log(f"Предпросмотр: Ошибка загрузки печати - {msg}")
-
-        preview = processor.generate_preview(sample_file, sample_data, self._get_fixed_texts())
-
-        if preview:
-            preview_rgb = preview.convert('RGB')
-            data = preview_rgb.tobytes("raw", "RGB")
-            qimage = QImage(data, preview_rgb.width, preview_rgb.height,
-                          preview_rgb.width * 3, QImage.Format.Format_RGB888)
-            pixmap = QPixmap.fromImage(qimage)
-
-            # Устанавливаем изображение в масштабируемый виджет
-            self.preview_widget.setPixmap(pixmap)
-            self._log(f"Превью: {Path(sample_file).name}")
-        else:
-            self.preview_widget.setText("Ошибка генерации превью")
-    
     def _validate_inputs(self) -> Tuple[bool, str]:
         """Валидация входных данных."""
         if not self.source_folder_edit.text():

@@ -1,6 +1,6 @@
 """Интерактивное превью с возможностью перемещения элементов."""
 from typing import Dict, List, Optional, Tuple
-from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal
+from PyQt6.QtCore import Qt, QPointF, QRectF, pyqtSignal, QObject
 from PyQt6.QtGui import (
     QPixmap, QColor, QPen, QBrush, QFont, QPainter, QImage,
     QWheelEvent, QMouseEvent
@@ -8,7 +8,8 @@ from PyQt6.QtGui import (
 from PyQt6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsItem,
     QGraphicsTextItem, QGraphicsRectItem, QWidget, QVBoxLayout,
-    QHBoxLayout, QPushButton, QSlider, QLabel, QGroupBox, QCheckBox
+    QHBoxLayout, QPushButton, QSlider, QLabel, QGroupBox, QCheckBox,
+    QSizePolicy
 )
 
 
@@ -63,6 +64,10 @@ class DraggableTextItem(QGraphicsTextItem):
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
+    def boundingRect(self):
+        """Расширяем границы для корректной отрисовки рамки выделения."""
+        return super().boundingRect().adjusted(-2, -2, 2, 2)
+
     def paint(self, painter, option, widget=None):
         """Кастомная отрисовка с рамкой при выделении."""
         super().paint(painter, option, widget)
@@ -74,13 +79,22 @@ class DraggableTextItem(QGraphicsTextItem):
             painter.drawRect(rect)
 
 
+class PixmapItemSignals(QObject):
+    """Вспомогательный класс для сигналов QGraphicsPixmapItem."""
+    positionChanged = pyqtSignal(str, float, float)  # name, x, y
+
+
 class DraggablePixmapItem(QGraphicsPixmapItem):
     """Перетаскиваемое изображение (печать)."""
 
-    positionChanged = pyqtSignal(str, float, float)  # name, x, y
-
     def __init__(self, pixmap: QPixmap, name: str, parent=None):
-        super().__init__(pixmap, parent)
+        super().__init__(parent)
+        self.setPixmap(pixmap)
+
+        # Создаем объект для сигналов (композиция вместо множественного наследования)
+        self._signals = PixmapItemSignals()
+        self.positionChanged = self._signals.positionChanged
+
         self.item_name = name
         self.original_pos = QPointF(0, 0)
 
@@ -125,9 +139,13 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
+    def boundingRect(self):
+        """Расширяем границы для корректной отрисовки рамки выделения."""
+        return super().boundingRect().adjusted(-2, -2, 2, 2)
+
     def paint(self, painter, option, widget=None):
         """Кастомная отрисовка с рамкой при выделении."""
-        super().paint(painter, option, widget)
+        QGraphicsPixmapItem.paint(self, painter, option, widget)
         if self.isSelected() or self._is_hovered:
             # Рисуем рамку вокруг печати
             rect = self.boundingRect()
@@ -166,7 +184,7 @@ class InteractivePreviewView(QGraphicsView):
         # Настройки отображения
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        self.setDragMode(QGraphicsView.DragMode.NoDrag)  # Отключаем, чтобы не мешало перетаскиванию
+        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)  # Включаем выделение рамкой
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setBackgroundBrush(QColor(200, 200, 200))
@@ -239,6 +257,9 @@ class InteractivePreviewView(QGraphicsView):
     def setEditMode(self, enabled: bool):
         """Включить/выключить режим редактирования."""
         self._edit_mode = enabled
+        # Включаем выделение рамкой в режиме редактирования
+        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag if enabled else QGraphicsView.DragMode.NoDrag)
+        
         for item in self.draggable_items.values():
             item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, enabled)
             item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, enabled)
@@ -315,6 +336,7 @@ class InteractivePreviewWidget(QWidget):
     """Виджет интерактивного превью с элементами управления."""
 
     offsetsChanged = pyqtSignal(dict)
+    updatePreviewRequested = pyqtSignal()  # Сигнал для обновления превью
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -329,38 +351,56 @@ class InteractivePreviewWidget(QWidget):
 
         # Панель управления
         controls_layout = QHBoxLayout()
-        controls_layout.setContentsMargins(5, 5, 5, 5)
+        controls_layout.setContentsMargins(8, 4, 8, 4)
+        controls_layout.setSpacing(12)
+        controls_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
+        # --- ЛЕВАЯ ЧАСТЬ: Редактирование ---
+        left_layout = QHBoxLayout()
+        left_layout.setSpacing(8)
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
         # Режим редактирования
         self.edit_mode_checkbox = QCheckBox("Режим редактирования")
         self.edit_mode_checkbox.setChecked(True)
+        self.edit_mode_checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.edit_mode_checkbox.stateChanged.connect(self._on_edit_mode_changed)
-        controls_layout.addWidget(self.edit_mode_checkbox)
+        left_layout.addWidget(self.edit_mode_checkbox)
 
         # Кнопка сброса позиций
         self.reset_positions_btn = QPushButton("Сбросить позиции")
+        self.reset_positions_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.reset_positions_btn.clicked.connect(self.preview_view.resetOffsets)
-        controls_layout.addWidget(self.reset_positions_btn)
+        left_layout.addWidget(self.reset_positions_btn)
+        
+        controls_layout.addLayout(left_layout)
+        controls_layout.addStretch()
 
-        controls_layout.addSpacing(20)
+        # --- ЦЕНТР: Масштабирование ---
+        zoom_layout = QHBoxLayout()
+        zoom_layout.setSpacing(6)
+        zoom_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # Кнопка "Вписать в окно"
         self.fit_button = QPushButton("По размеру окна")
         self.fit_button.setMaximumWidth(120)
+        self.fit_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.fit_button.clicked.connect(self.preview_view.fitInView)
-        controls_layout.addWidget(self.fit_button)
+        zoom_layout.addWidget(self.fit_button)
 
         # Кнопка "100%"
         self.reset_button = QPushButton("100%")
         self.reset_button.setMaximumWidth(60)
+        self.reset_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.reset_button.clicked.connect(self.preview_view.resetZoom)
-        controls_layout.addWidget(self.reset_button)
+        zoom_layout.addWidget(self.reset_button)
 
         # Кнопка уменьшения
         self.zoom_out_button = QPushButton("-")
         self.zoom_out_button.setMaximumWidth(40)
+        self.zoom_out_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.zoom_out_button.clicked.connect(self.preview_view.zoomOut)
-        controls_layout.addWidget(self.zoom_out_button)
+        zoom_layout.addWidget(self.zoom_out_button)
 
         # Слайдер масштаба
         self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
@@ -369,32 +409,44 @@ class InteractivePreviewWidget(QWidget):
         self.zoom_slider.setValue(100)
         self.zoom_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.zoom_slider.setTickInterval(100)
+        self.zoom_slider.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.zoom_slider.valueChanged.connect(self._on_slider_changed)
-        controls_layout.addWidget(self.zoom_slider)
+        zoom_layout.addWidget(self.zoom_slider)
 
         # Кнопка увеличения
         self.zoom_in_button = QPushButton("+")
         self.zoom_in_button.setMaximumWidth(40)
+        self.zoom_in_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self.zoom_in_button.clicked.connect(self.preview_view.zoomIn)
-        controls_layout.addWidget(self.zoom_in_button)
+        zoom_layout.addWidget(self.zoom_in_button)
 
         # Метка со значением масштаба
         self.zoom_label = QLabel("100%")
         self.zoom_label.setMinimumWidth(50)
         self.zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        controls_layout.addWidget(self.zoom_label)
+        self.zoom_label.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        zoom_layout.addWidget(self.zoom_label)
 
-        # Подсказка
-        self.hint_label = QLabel("💡 Перетащите текст и печать мышью")
-        self.hint_label.setStyleSheet("color: gray; font-size: 10px;")
-        controls_layout.addWidget(self.hint_label)
-
+        controls_layout.addLayout(zoom_layout)
         controls_layout.addStretch()
+        
+        # --- ПРАВАЯ ЧАСТЬ: Обновление (заполнитель) ---
+        self.right_layout = QHBoxLayout()
+        self.right_layout.setSpacing(8)
+        self.right_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
+        controls_layout.addLayout(self.right_layout)
+
         main_layout.addLayout(controls_layout)
 
         # Подключаем сигналы
         self.preview_view.zoomChanged.connect(self._on_zoom_changed)
         self.preview_view.elementsChanged.connect(self.offsetsChanged)
+        
+    def addRightWidget(self, widget: QWidget):
+        """Добавить виджет в правую часть панели управления."""
+        widget.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.right_layout.addWidget(widget)
 
     def _on_slider_changed(self, value: int):
         """Обработка изменения слайдера."""

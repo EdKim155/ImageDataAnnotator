@@ -131,9 +131,10 @@ class ImageProcessor:
 
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
+                    stamp_scale = self.settings.get("stamp_scale", 1.0)
                     stamp_width = min(panel_width - 20, self.stamp_image.width)
                     ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio)
+                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
                     required_height += stamp_height + 40  # +40 для отступов
 
                 # Используем максимум из высоты изображения и требуемой высоты
@@ -178,9 +179,10 @@ class ImageProcessor:
 
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
+                    stamp_scale = self.settings.get("stamp_scale", 1.0)
                     stamp_width = min(original.width - 20, self.stamp_image.width)
                     ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio)
+                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -261,16 +263,25 @@ class ImageProcessor:
 
             # Добавляем печать/подпись
             if self.stamp_image and self.settings.get("stamp_enabled", True):
+                # Получаем масштаб печати из настроек (по умолчанию 1.0 = 100%)
+                stamp_scale = self.settings.get("stamp_scale", 1.0)
+
+                # Вычисляем размеры с учетом масштаба
                 stamp_width = min(panel_width - 20, self.stamp_image.width)
                 ratio = stamp_width / self.stamp_image.width
                 stamp_height = int(self.stamp_image.height * ratio)
+
+                # Применяем дополнительное масштабирование
+                stamp_width = int(stamp_width * stamp_scale)
+                stamp_height = int(stamp_height * stamp_scale)
+
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
                 stamp_y = text_y + 20
                 # Применяем смещение для печати
                 offset_x, offset_y = element_offsets.get("stamp", (0, 0))
                 # Добавляем печать независимо от проверки - она всегда должна быть видна
-                print(f"DEBUG: Добавляем печать на позицию y={stamp_y}, высота панели={panel_area[3]}")
+                print(f"DEBUG: Добавляем печать на позицию y={stamp_y}, высота панели={panel_area[3]}, масштаб={stamp_scale}")
                 try:
                     result.paste(stamp_resized, (text_x + int(offset_x), stamp_y + int(offset_y)), stamp_resized)
                 except Exception as e:
@@ -408,9 +419,10 @@ class ImageProcessor:
 
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
+                    stamp_scale = self.settings.get("stamp_scale", 1.0)
                     stamp_width = min(panel_width - 20, self.stamp_image.width)
                     ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio)
+                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -426,25 +438,25 @@ class ImageProcessor:
 
             text_x = panel_area[0] + 5
             text_y = panel_area[1] + 5
-            
+
             # Добавляем данные
             excel_fields = self.settings.get("excel_fields", {})
-            
+
             if excel_fields.get("inn", {}).get("enabled") and excel_data.get("inn"):
                 draw.text((text_x, text_y), f"ИНН: {excel_data['inn']}", fill=text_color, font=font)
                 text_y += line_height
-            
+
             if excel_fields.get("kpp", {}).get("enabled") and excel_data.get("kpp"):
                 draw.text((text_x, text_y), f"КПП: {excel_data['kpp']}", fill=text_color, font=font)
                 text_y += line_height
-            
+
             if excel_fields.get("supplier", {}).get("enabled") and excel_data.get("supplier"):
                 supplier = excel_data['supplier'][:30] + "..." if len(excel_data['supplier']) > 30 else excel_data['supplier']
                 draw.text((text_x, text_y), f"Поставщик:", fill=text_color, font=font)
                 text_y += line_height
                 draw.text((text_x, text_y), supplier, fill=text_color, font=font)
                 text_y += line_height
-            
+
             # Фиксированные тексты
             text_y += 5
             print(f"DEBUG PREVIEW: Фиксированные тексты: {fixed_texts}")
@@ -457,9 +469,13 @@ class ImageProcessor:
 
             # Добавляем печать, если она загружена
             if self.stamp_image and self.settings.get("stamp_enabled", True):
+                stamp_scale = self.settings.get("stamp_scale", 1.0)
                 stamp_width = min(panel_width - 20, self.stamp_image.width)
                 ratio = stamp_width / self.stamp_image.width
                 stamp_height = int(self.stamp_image.height * ratio)
+                # Применяем масштаб
+                stamp_width = int(stamp_width * stamp_scale)
+                stamp_height = int(stamp_height * stamp_scale)
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
                 stamp_y = text_y + 20
@@ -537,9 +553,10 @@ class ImageProcessor:
                         panel_height += line_height
 
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
+                    stamp_scale = self.settings.get("stamp_scale", 1.0)
                     stamp_width = min(panel_width - 20, self.stamp_image.width)
                     ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio)
+                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
                     panel_height += stamp_height + 40
 
                 panel_height += 20
@@ -583,9 +600,13 @@ class ImageProcessor:
 
             # Печать
             if self.stamp_image and self.settings.get("stamp_enabled", True):
+                stamp_scale = self.settings.get("stamp_scale", 1.0)
                 stamp_width = min(panel_width - 20, self.stamp_image.width)
                 ratio = stamp_width / self.stamp_image.width
                 stamp_height = int(self.stamp_image.height * ratio)
+                # Применяем масштаб
+                stamp_width = int(stamp_width * stamp_scale)
+                stamp_height = int(stamp_height * stamp_scale)
                 stamp_y = text_y + 20
                 if stamp_y + stamp_height < panel_area[3]:
                     element_positions["stamp"] = (text_x, stamp_y, None, None)  # Печать не имеет текста
