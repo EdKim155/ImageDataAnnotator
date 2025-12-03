@@ -138,9 +138,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    # Применяем масштаб БЕЗ ограничения (для расчета высоты панели)
+                    # Применяем масштаб
                     stamp_width = int(self.stamp_image.width * stamp_scale)
                     stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # Ограничиваем шириной панели
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     required_height += stamp_height + 40  # +40 для отступов
 
                 # Используем максимум из высоты изображения и требуемой высоты
@@ -186,9 +190,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    # Применяем масштаб БЕЗ ограничения (для расчета высоты панели)
+                    # Применяем масштаб
                     stamp_width = int(self.stamp_image.width * stamp_scale)
                     stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # Ограничиваем шириной
+                    if stamp_width > original.width - 20:
+                        ratio = (original.width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -272,9 +280,15 @@ class ImageProcessor:
                 # Получаем масштаб печати из настроек (по умолчанию 1.0 = 100%)
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # Применяем масштаб БЕЗ ограничения панелью (печать может быть больше)
+                # Применяем масштаб к оригинальному размеру
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
+
+                # Ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
@@ -421,9 +435,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    # Применяем масштаб БЕЗ ограничения (для расчета высоты панели)
+                    # Применяем масштаб
                     stamp_width = int(self.stamp_image.width * stamp_scale)
                     stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # Ограничиваем шириной
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -472,14 +490,20 @@ class ImageProcessor:
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # Применяем масштаб БЕЗ ограничения панелью
+                # Применяем масштаб к оригинальному размеру
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
+
+                # Ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
                 stamp_y = text_y + 20
-                # Добавляем печать всегда, даже если выходит за границы панели
+                # Добавляем печать всегда
                 result.paste(stamp_resized, (text_x, stamp_y), stamp_resized)
 
             # Восстанавливаем формат
@@ -554,9 +578,13 @@ class ImageProcessor:
 
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    # Применяем масштаб БЕЗ ограничения (для расчета высоты панели)
+                    # Применяем масштаб
                     stamp_width = int(self.stamp_image.width * stamp_scale)
                     stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # Ограничиваем шириной
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40
 
                 panel_height += 20
@@ -602,12 +630,18 @@ class ImageProcessor:
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # Применяем масштаб БЕЗ ограничения панелью
+                # Применяем масштаб к оригинальному размеру
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
 
+                # Ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
+
                 stamp_y = text_y + 20
-                # Добавляем позицию печати всегда
+                # Добавляем позицию печати
                 element_positions["stamp"] = (text_x, stamp_y, None, None)  # Печать не имеет текста
 
             # Возвращаем фоновое изображение БЕЗ нарисованных элементов

@@ -1488,7 +1488,7 @@ class MainWindow(QMainWindow):
             "text_color": "#000000",
             "format": "png" if self.format_png.isChecked() else ("jpg" if self.format_jpg.isChecked() else "pdf"),
             "stamp_enabled": self.stamp_checkbox.isChecked(),
-            "stamp_scale": 1.5,  # Увеличенный размер печати (150%) для лучшей видимости
+            "stamp_scale": 0.5,  # Оптимальный размер печати (50%), пропорционально тексту и панели
             "excel_fields": {
                 "inn": {"enabled": self.inn_checkbox.isChecked()},
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
@@ -1604,9 +1604,15 @@ class MainWindow(QMainWindow):
                         stamp_scale = settings.get("stamp_scale", 1.0)
                         panel_width = settings.get("panel_width", 300)
 
-                        # Применяем масштаб к оригинальному размеру БЕЗ ограничения панелью
+                        # Применяем масштаб к оригинальному размеру
                         stamp_width = int(processor.stamp_image.width * stamp_scale)
                         stamp_height = int(processor.stamp_image.height * stamp_scale)
+
+                        # Ограничиваем шириной панели, если нужно
+                        if stamp_width > panel_width - 20:
+                            ratio = (panel_width - 20) / stamp_width
+                            stamp_width = panel_width - 20
+                            stamp_height = int(stamp_height * ratio)
 
                         # Масштабируем изображение печати
                         stamp_resized = processor.stamp_image.resize(
