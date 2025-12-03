@@ -805,19 +805,6 @@ class MainWindow(QMainWindow):
         h4.addWidget(self.stamp_file_btn)
         g4_layout.addLayout(h4)
 
-        # Масштаб печати
-        h4b = QHBoxLayout()
-        h4b.addWidget(QLabel("Масштаб печати:"))
-        self.stamp_scale = QSpinBox()
-        self.stamp_scale.setRange(10, 200)
-        self.stamp_scale.setValue(100)
-        self.stamp_scale.setSuffix(" %")
-        self.stamp_scale.setFixedWidth(80)
-        self.stamp_scale.setToolTip("Регулирует размер печати на изображениях (100% = оригинальный размер)")
-        h4b.addWidget(self.stamp_scale)
-        h4b.addStretch()
-        g4_layout.addLayout(h4b)
-
         layout.addWidget(group4)
         
         layout.addStretch()
@@ -1212,12 +1199,6 @@ class MainWindow(QMainWindow):
         """Подключение сигналов."""
         self.source_folder_edit.textChanged.connect(self._on_source_changed)
         self.excel_file_edit.textChanged.connect(self._on_excel_changed)
-
-        # Подключаем изменение масштаба печати к обновлению превью с задержкой
-        self._scale_update_timer = QTimer()
-        self._scale_update_timer.setSingleShot(True)
-        self._scale_update_timer.timeout.connect(self._update_preview)
-        self.stamp_scale.valueChanged.connect(self._on_stamp_scale_changed)
     
     def _load_settings(self):
         """Загрузка настроек в UI."""
@@ -1236,7 +1217,6 @@ class MainWindow(QMainWindow):
             self.output_folder_edit.setText(s.get("paths", "output_folder", default=""))
             self.excel_file_edit.setText(s.get("paths", "excel_file", default=""))
             self.stamp_file_edit.setText(s.get("paths", "stamp_file", default=""))
-            self.stamp_scale.setValue(s.get("paths", "stamp_scale", default=100))
 
             self.inn_checkbox.setChecked(s.get("excel_fields", "inn", "enabled", default=True))
             self.inn_column.setValue(s.get("excel_fields", "inn", "column", default=22))
@@ -1301,7 +1281,6 @@ class MainWindow(QMainWindow):
             s.set("paths", "output_folder", self.output_folder_edit.text())
             s.set("paths", "excel_file", self.excel_file_edit.text())
             s.set("paths", "stamp_file", self.stamp_file_edit.text())
-            s.set("paths", "stamp_scale", self.stamp_scale.value())
 
             s.set("excel_fields", "inn", "enabled", self.inn_checkbox.isChecked())
             s.set("excel_fields", "inn", "column", self.inn_column.value())
@@ -1498,13 +1477,6 @@ class MainWindow(QMainWindow):
         else:
             print(f"DEBUG: Excel файл не существует или путь пустой")
             self.excel_info.setText("Файл не найден")
-
-    def _on_stamp_scale_changed(self, value: int):
-        """Обработчик изменения масштаба печати."""
-        # Запускаем таймер с задержкой 300мс для обновления превью
-        # Это предотвращает множественные обновления при быстром изменении значения
-        self._scale_update_timer.stop()
-        self._scale_update_timer.start(300)
     
     def _get_processor_settings(self) -> Dict:
         """Получение настроек для процессора."""
@@ -1516,7 +1488,7 @@ class MainWindow(QMainWindow):
             "text_color": "#000000",
             "format": "png" if self.format_png.isChecked() else ("jpg" if self.format_jpg.isChecked() else "pdf"),
             "stamp_enabled": self.stamp_checkbox.isChecked(),
-            "stamp_scale": self.stamp_scale.value() / 100.0,  # Конвертируем проценты в коэффициент
+            "stamp_scale": 0.4,  # Фиксированный небольшой размер печати (40% от оригинала)
             "excel_fields": {
                 "inn": {"enabled": self.inn_checkbox.isChecked()},
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
