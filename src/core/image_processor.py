@@ -280,15 +280,9 @@ class ImageProcessor:
                 # Получаем масштаб печати из настроек (по умолчанию 1.0 = 100%)
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                # Применяем масштаб БЕЗ ограничения панелью (печать может быть больше)
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
-
-                # ЗАТЕМ ограничиваем шириной панели, если нужно
-                if stamp_width > panel_width - 20:
-                    ratio = (panel_width - 20) / stamp_width
-                    stamp_width = panel_width - 20
-                    stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
@@ -490,15 +484,9 @@ class ImageProcessor:
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                # Применяем масштаб БЕЗ ограничения панелью
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
-
-                # ЗАТЕМ ограничиваем шириной панели, если нужно
-                if stamp_width > panel_width - 20:
-                    ratio = (panel_width - 20) / stamp_width
-                    stamp_width = panel_width - 20
-                    stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
@@ -630,15 +618,9 @@ class ImageProcessor:
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                # Применяем масштаб БЕЗ ограничения панелью
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
-
-                # ЗАТЕМ ограничиваем шириной панели, если нужно
-                if stamp_width > panel_width - 20:
-                    ratio = (panel_width - 20) / stamp_width
-                    stamp_width = panel_width - 20
-                    stamp_height = int(stamp_height * ratio)
 
                 stamp_y = text_y + 20
                 if stamp_y + stamp_height < panel_area[3]:

@@ -1604,15 +1604,9 @@ class MainWindow(QMainWindow):
                         stamp_scale = settings.get("stamp_scale", 1.0)
                         panel_width = settings.get("panel_width", 300)
 
-                        # СНАЧАЛА применяем масштаб к оригинальному размеру
+                        # Применяем масштаб к оригинальному размеру БЕЗ ограничения панелью
                         stamp_width = int(processor.stamp_image.width * stamp_scale)
                         stamp_height = int(processor.stamp_image.height * stamp_scale)
-
-                        # ЗАТЕМ ограничиваем шириной панели, если нужно
-                        if stamp_width > panel_width - 20:
-                            ratio = (panel_width - 20) / stamp_width
-                            stamp_width = panel_width - 20
-                            stamp_height = int(stamp_height * ratio)
 
                         # Масштабируем изображение печати
                         stamp_resized = processor.stamp_image.resize(
