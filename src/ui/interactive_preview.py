@@ -144,14 +144,9 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         return super().boundingRect().adjusted(-2, -2, 2, 2)
 
     def paint(self, painter, option, widget=None):
-        """Кастомная отрисовка с рамкой при выделении."""
+        """Кастомная отрисовка без рамки (как у текста)."""
+        # Отрисовываем только само изображение, без рамки
         QGraphicsPixmapItem.paint(self, painter, option, widget)
-        if self.isSelected() or self._is_hovered:
-            # Рисуем рамку вокруг печати
-            rect = self.boundingRect()
-            pen = QPen(QColor(76, 175, 80), 3, Qt.PenStyle.DashLine)  # Зеленый
-            painter.setPen(pen)
-            painter.drawRect(rect)
 
 
 class InteractivePreviewView(QGraphicsView):

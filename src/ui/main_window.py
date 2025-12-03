@@ -1488,7 +1488,7 @@ class MainWindow(QMainWindow):
             "text_color": "#000000",
             "format": "png" if self.format_png.isChecked() else ("jpg" if self.format_jpg.isChecked() else "pdf"),
             "stamp_enabled": self.stamp_checkbox.isChecked(),
-            "stamp_scale": 0.15,  # Фиксированный компактный размер печати (15% от оригинала)
+            "stamp_scale": 0.35,  # Фиксированный оптимальный размер печати (35% от оригинала)
             "excel_fields": {
                 "inn": {"enabled": self.inn_checkbox.isChecked()},
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
@@ -1619,11 +1619,14 @@ class MainWindow(QMainWindow):
                             (stamp_width, stamp_height), Image.Resampling.LANCZOS
                         )
 
-                        stamp_rgb = stamp_resized.convert('RGB')
-                        stamp_data = stamp_rgb.tobytes("raw", "RGB")
+                        # Сохраняем прозрачность (RGBA)
+                        if stamp_resized.mode != 'RGBA':
+                            stamp_resized = stamp_resized.convert('RGBA')
+
+                        stamp_data = stamp_resized.tobytes("raw", "RGBA")
                         stamp_qimage = QImage(
-                            stamp_data, stamp_rgb.width, stamp_rgb.height,
-                            stamp_rgb.width * 3, QImage.Format.Format_RGB888
+                            stamp_data, stamp_resized.width, stamp_resized.height,
+                            stamp_resized.width * 4, QImage.Format.Format_RGBA8888
                         )
                         stamp_pixmap = QPixmap.fromImage(stamp_qimage)
                         self.interactive_preview.preview_view.addDraggablePixmap(
