@@ -1599,8 +1599,27 @@ class MainWindow(QMainWindow):
                 else:
                     # Печать
                     if processor.stamp_image:
-                        stamp_pil = processor.stamp_image
-                        stamp_rgb = stamp_pil.convert('RGB')
+                        # Применяем масштабирование к печати
+                        from PIL import Image
+                        stamp_scale = settings.get("stamp_scale", 1.0)
+                        panel_width = settings.get("panel_width", 300)
+
+                        # СНАЧАЛА применяем масштаб к оригинальному размеру
+                        stamp_width = int(processor.stamp_image.width * stamp_scale)
+                        stamp_height = int(processor.stamp_image.height * stamp_scale)
+
+                        # ЗАТЕМ ограничиваем шириной панели, если нужно
+                        if stamp_width > panel_width - 20:
+                            ratio = (panel_width - 20) / stamp_width
+                            stamp_width = panel_width - 20
+                            stamp_height = int(stamp_height * ratio)
+
+                        # Масштабируем изображение печати
+                        stamp_resized = processor.stamp_image.resize(
+                            (stamp_width, stamp_height), Image.Resampling.LANCZOS
+                        )
+
+                        stamp_rgb = stamp_resized.convert('RGB')
                         stamp_data = stamp_rgb.tobytes("raw", "RGB")
                         stamp_qimage = QImage(
                             stamp_data, stamp_rgb.width, stamp_rgb.height,
