@@ -266,14 +266,15 @@ class ImageProcessor:
                 # Получаем масштаб печати из настроек (по умолчанию 1.0 = 100%)
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
 
-                # Вычисляем размеры с учетом масштаба
-                stamp_width = min(panel_width - 20, self.stamp_image.width)
-                ratio = stamp_width / self.stamp_image.width
-                stamp_height = int(self.stamp_image.height * ratio)
+                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                stamp_width = int(self.stamp_image.width * stamp_scale)
+                stamp_height = int(self.stamp_image.height * stamp_scale)
 
-                # Применяем дополнительное масштабирование
-                stamp_width = int(stamp_width * stamp_scale)
-                stamp_height = int(stamp_height * stamp_scale)
+                # ЗАТЕМ ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
@@ -470,12 +471,17 @@ class ImageProcessor:
             # Добавляем печать, если она загружена
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
-                stamp_width = min(panel_width - 20, self.stamp_image.width)
-                ratio = stamp_width / self.stamp_image.width
-                stamp_height = int(self.stamp_image.height * ratio)
-                # Применяем масштаб
-                stamp_width = int(stamp_width * stamp_scale)
-                stamp_height = int(stamp_height * stamp_scale)
+
+                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                stamp_width = int(self.stamp_image.width * stamp_scale)
+                stamp_height = int(self.stamp_image.height * stamp_scale)
+
+                # ЗАТЕМ ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
+
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
 
                 stamp_y = text_y + 20
@@ -601,12 +607,17 @@ class ImageProcessor:
             # Печать
             if self.stamp_image and self.settings.get("stamp_enabled", True):
                 stamp_scale = self.settings.get("stamp_scale", 1.0)
-                stamp_width = min(panel_width - 20, self.stamp_image.width)
-                ratio = stamp_width / self.stamp_image.width
-                stamp_height = int(self.stamp_image.height * ratio)
-                # Применяем масштаб
-                stamp_width = int(stamp_width * stamp_scale)
-                stamp_height = int(stamp_height * stamp_scale)
+
+                # СНАЧАЛА применяем масштаб к оригинальному размеру
+                stamp_width = int(self.stamp_image.width * stamp_scale)
+                stamp_height = int(self.stamp_image.height * stamp_scale)
+
+                # ЗАТЕМ ограничиваем шириной панели, если нужно
+                if stamp_width > panel_width - 20:
+                    ratio = (panel_width - 20) / stamp_width
+                    stamp_width = panel_width - 20
+                    stamp_height = int(stamp_height * ratio)
+
                 stamp_y = text_y + 20
                 if stamp_y + stamp_height < panel_area[3]:
                     element_positions["stamp"] = (text_x, stamp_y, None, None)  # Печать не имеет текста
