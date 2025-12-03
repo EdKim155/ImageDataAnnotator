@@ -78,10 +78,16 @@ class ImageProcessor:
     ) -> Tuple[bool, str]:
         """Обработка одного изображения."""
         try:
+            print(f"DEBUG PROCESS: Начало обработки {image_path}")
+            print(f"DEBUG PROCESS: Excel данные: {excel_data}")
+            print(f"DEBUG PROCESS: Фиксированные тексты: {fixed_texts}")
+
             # Загрузка исходного изображения
             original = Image.open(image_path)
             if original.mode != 'RGBA':
                 original = original.convert('RGBA')
+
+            print(f"DEBUG PROCESS: Изображение загружено, размер: {original.size}")
             
             # Параметры из настроек
             panel_width = self.settings.get("panel_width", 300)
@@ -132,9 +138,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    stamp_width = min(panel_width - 20, self.stamp_image.width)
-                    ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
+                    # СНАЧАЛА применяем масштаб
+                    stamp_width = int(self.stamp_image.width * stamp_scale)
+                    stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # ЗАТЕМ ограничиваем панелью
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     required_height += stamp_height + 40  # +40 для отступов
 
                 # Используем максимум из высоты изображения и требуемой высоты
@@ -180,9 +190,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    stamp_width = min(original.width - 20, self.stamp_image.width)
-                    ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
+                    # СНАЧАЛА применяем масштаб
+                    stamp_width = int(self.stamp_image.width * stamp_scale)
+                    stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # ЗАТЕМ ограничиваем шириной
+                    if stamp_width > original.width - 20:
+                        ratio = (original.width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -421,9 +435,13 @@ class ImageProcessor:
                 # Печать (если есть)
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    stamp_width = min(panel_width - 20, self.stamp_image.width)
-                    ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
+                    # СНАЧАЛА применяем масштаб
+                    stamp_width = int(self.stamp_image.width * stamp_scale)
+                    stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # ЗАТЕМ ограничиваем шириной
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40  # +40 для отступов
 
                 # Добавляем минимальный отступ снизу
@@ -560,9 +578,13 @@ class ImageProcessor:
 
                 if self.stamp_image and self.settings.get("stamp_enabled", True):
                     stamp_scale = self.settings.get("stamp_scale", 1.0)
-                    stamp_width = min(panel_width - 20, self.stamp_image.width)
-                    ratio = stamp_width / self.stamp_image.width
-                    stamp_height = int(self.stamp_image.height * ratio * stamp_scale)
+                    # СНАЧАЛА применяем масштаб
+                    stamp_width = int(self.stamp_image.width * stamp_scale)
+                    stamp_height = int(self.stamp_image.height * stamp_scale)
+                    # ЗАТЕМ ограничиваем шириной
+                    if stamp_width > panel_width - 20:
+                        ratio = (panel_width - 20) / stamp_width
+                        stamp_height = int(stamp_height * ratio)
                     panel_height += stamp_height + 40
 
                 panel_height += 20
