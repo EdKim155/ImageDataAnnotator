@@ -1212,6 +1212,12 @@ class MainWindow(QMainWindow):
         """Подключение сигналов."""
         self.source_folder_edit.textChanged.connect(self._on_source_changed)
         self.excel_file_edit.textChanged.connect(self._on_excel_changed)
+
+        # Подключаем изменение масштаба печати к обновлению превью с задержкой
+        self._scale_update_timer = QTimer()
+        self._scale_update_timer.setSingleShot(True)
+        self._scale_update_timer.timeout.connect(self._update_preview)
+        self.stamp_scale.valueChanged.connect(self._on_stamp_scale_changed)
     
     def _load_settings(self):
         """Загрузка настроек в UI."""
@@ -1492,6 +1498,13 @@ class MainWindow(QMainWindow):
         else:
             print(f"DEBUG: Excel файл не существует или путь пустой")
             self.excel_info.setText("Файл не найден")
+
+    def _on_stamp_scale_changed(self, value: int):
+        """Обработчик изменения масштаба печати."""
+        # Запускаем таймер с задержкой 300мс для обновления превью
+        # Это предотвращает множественные обновления при быстром изменении значения
+        self._scale_update_timer.stop()
+        self._scale_update_timer.start(300)
     
     def _get_processor_settings(self) -> Dict:
         """Получение настроек для процессора."""
