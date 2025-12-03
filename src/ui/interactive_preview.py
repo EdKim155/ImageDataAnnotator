@@ -24,12 +24,14 @@ class DraggableTextItem(QGraphicsTextItem):
         self.original_pos = QPointF(0, 0)
 
         # Настройка флагов (Context7 best practice)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        # ОТКЛЮЧЕНО: Режим редактирования отключен
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, False)
 
         # Визуальное выделение при наведении
-        self.setAcceptHoverEvents(True)
+        # ОТКЛЮЧЕНО: Не требуется в режиме просмотра
+        self.setAcceptHoverEvents(False)
         self._is_hovered = False
 
     def itemChange(self, change, value):
@@ -99,12 +101,14 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         self.original_pos = QPointF(0, 0)
 
         # Настройка флагов (Context7 best practice)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
-        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, True)
+        # ОТКЛЮЧЕНО: Режим редактирования отключен
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges, False)
 
         # Визуальное выделение
-        self.setAcceptHoverEvents(True)
+        # ОТКЛЮЧЕНО: Не требуется в режиме просмотра
+        self.setAcceptHoverEvents(False)
         self._is_hovered = False
         self._selection_rect = None
 
@@ -179,13 +183,15 @@ class InteractivePreviewView(QGraphicsView):
         # Настройки отображения
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)  # Включаем выделение рамкой
+        # ОТКЛЮЧЕНО: Режим выделения рамкой отключен
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)  # Отключаем выделение рамкой
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setBackgroundBrush(QColor(200, 200, 200))
 
         # Режим редактирования
-        self._edit_mode = True
+        # ОТКЛЮЧЕНО: Режим редактирования выключен по умолчанию
+        self._edit_mode = False
 
     def setBackgroundPixmap(self, pixmap: QPixmap):
         """Установить фоновое изображение."""
@@ -351,25 +357,26 @@ class InteractivePreviewWidget(QWidget):
         controls_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
         # --- ЛЕВАЯ ЧАСТЬ: Редактирование ---
-        left_layout = QHBoxLayout()
-        left_layout.setSpacing(8)
-        left_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        
-        # Режим редактирования
-        self.edit_mode_checkbox = QCheckBox("Режим редактирования")
-        self.edit_mode_checkbox.setChecked(True)
-        self.edit_mode_checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.edit_mode_checkbox.stateChanged.connect(self._on_edit_mode_changed)
-        left_layout.addWidget(self.edit_mode_checkbox)
-
-        # Кнопка сброса позиций
-        self.reset_positions_btn = QPushButton("Сбросить позиции")
-        self.reset_positions_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.reset_positions_btn.clicked.connect(self.preview_view.resetOffsets)
-        left_layout.addWidget(self.reset_positions_btn)
-        
-        controls_layout.addLayout(left_layout)
-        controls_layout.addStretch()
+        # ОТКЛЮЧЕНО: Кнопки редактирования скрыты
+        # left_layout = QHBoxLayout()
+        # left_layout.setSpacing(8)
+        # left_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        #
+        # # Режим редактирования
+        # self.edit_mode_checkbox = QCheckBox("Режим редактирования")
+        # self.edit_mode_checkbox.setChecked(False)
+        # self.edit_mode_checkbox.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # self.edit_mode_checkbox.stateChanged.connect(self._on_edit_mode_changed)
+        # left_layout.addWidget(self.edit_mode_checkbox)
+        #
+        # # Кнопка сброса позиций
+        # self.reset_positions_btn = QPushButton("Сбросить позиции")
+        # self.reset_positions_btn.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # self.reset_positions_btn.clicked.connect(self.preview_view.resetOffsets)
+        # left_layout.addWidget(self.reset_positions_btn)
+        #
+        # controls_layout.addLayout(left_layout)
+        # controls_layout.addStretch()
 
         # --- ЦЕНТР: Масштабирование ---
         zoom_layout = QHBoxLayout()
@@ -456,11 +463,12 @@ class InteractivePreviewWidget(QWidget):
         self.zoom_slider.setValue(zoom_int)
         self.zoom_label.setText(f"{zoom_int}%")
 
-    def _on_edit_mode_changed(self, state):
-        """Переключение режима редактирования."""
-        enabled = state == Qt.CheckState.Checked.value
-        self.preview_view.setEditMode(enabled)
-        self.reset_positions_btn.setEnabled(enabled)
+    # ОТКЛЮЧЕНО: Метод больше не используется
+    # def _on_edit_mode_changed(self, state):
+    #     """Переключение режима редактирования."""
+    #     enabled = state == Qt.CheckState.Checked.value
+    #     self.preview_view.setEditMode(enabled)
+    #     self.reset_positions_btn.setEnabled(enabled)
 
     def getOffsets(self) -> Dict[str, Tuple[float, float]]:
         """Получить смещения всех элементов."""

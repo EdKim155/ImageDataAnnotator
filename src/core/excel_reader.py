@@ -46,22 +46,24 @@ class ExcelReader:
         """Парсинг данных из Excel."""
         if not self._loaded:
             return False, "Excel файл не загружен"
-        
+
         columns = column_mapping or self.DEFAULT_COLUMNS
-        
+
         try:
             row_num = self.DATA_START_ROW
+            skipped_rows = 0
+
             while True:
                 # Получаем значение позиции (столбец A)
                 position_cell = self.sheet.cell(row=row_num, column=columns["position"] + 1)
                 position_value = position_cell.value
-                
+
                 if position_value is None or str(position_value).strip() == "":
                     break
-                
+
                 # Нормализуем позицию (1.1 -> 1-1)
                 position_key = self._normalize_position(str(position_value))
-                
+
                 # Читаем данные для этой позиции
                 row_data = {}
                 for field_name, col_index in columns.items():
@@ -69,11 +71,29 @@ class ExcelReader:
                         continue
                     cell_value = self.sheet.cell(row=row_num, column=col_index + 1).value
                     row_data[field_name] = str(cell_value) if cell_value is not None else ""
-                
+
+                # ИСПРАВЛЕНИЕ: Пропускаем строки-заголовки разделов
+                # (где все основные поля пустые или "None")
+                is_section_header = all(
+                    not value or value == "None"
+                    for key, value in row_data.items()
+                    if key in ["supplier", "inn", "kpp"]
+                )
+
+                if is_section_header:
+                    # Это заголовок раздела, пропускаем
+                    skipped_rows += 1
+                    row_num += 1
+                    continue
+
                 self.data[position_key] = row_data
                 row_num += 1
-            
-            return True, f"Загружено {len(self.data)} записей"
+
+            message = f"Загружено {len(self.data)} записей"
+            if skipped_rows > 0:
+                message += f" (пропущено {skipped_rows} заголовков разделов)"
+
+            return True, message
         except Exception as e:
             return False, f"Ошибка парсинга: {str(e)}"
     

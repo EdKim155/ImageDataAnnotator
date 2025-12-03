@@ -221,6 +221,11 @@ class ImageProcessor:
 
             # Получаем смещения из настроек
             element_offsets = self.settings.get("element_offsets", {})
+            print(f"DEBUG: Применяем смещения элементов: {element_offsets}")
+
+            # Определяем ширину для переноса текста в зависимости от позиции панели
+            text_wrap_width = panel_width - 20 if position == "left" else original.width - 20
+            separator_end_x = panel_width - 10 if position == "left" else original.width - 10
 
             # Добавляем данные из Excel
             excel_fields = self.settings.get("excel_fields", {})
@@ -228,34 +233,52 @@ class ImageProcessor:
             if excel_fields.get("inn", {}).get("enabled") and excel_data.get("inn"):
                 # Применяем смещение для ИНН
                 offset_x, offset_y = element_offsets.get("inn", (0, 0))
-                draw.text((text_x + offset_x, text_y + offset_y), f"ИНН: {excel_data['inn']}", fill=text_color, font=font)
-                text_y += line_height
+                actual_y = text_y + offset_y
+                draw.text((text_x + offset_x, actual_y), f"ИНН: {excel_data['inn']}", fill=text_color, font=font)
+                text_y = max(text_y + line_height, actual_y + line_height)
 
             if excel_fields.get("kpp", {}).get("enabled") and excel_data.get("kpp"):
                 # Применяем смещение для КПП
                 offset_x, offset_y = element_offsets.get("kpp", (0, 0))
-                draw.text((text_x + offset_x, text_y + offset_y), f"КПП: {excel_data['kpp']}", fill=text_color, font=font)
-                text_y += line_height
-            
+                actual_y = text_y + offset_y
+                draw.text((text_x + offset_x, actual_y), f"КПП: {excel_data['kpp']}", fill=text_color, font=font)
+                text_y = max(text_y + line_height, actual_y + line_height)
+
             if excel_fields.get("supplier", {}).get("enabled") and excel_data.get("supplier"):
                 # Переносим длинное название поставщика
                 supplier_text = f"Поставщик:\n{excel_data['supplier']}"
-                lines = self._wrap_text(supplier_text, font, panel_width - 20)
-                for line in lines:
-                    draw.text((text_x, text_y), line, fill=text_color, font=font)
-                    text_y += line_height
-            
+                lines = self._wrap_text(supplier_text, font, text_wrap_width)
+                # Применяем смещение только к первой строке
+                offset_x, offset_y = element_offsets.get("supplier", (0, 0))
+                start_y = text_y
+                for idx, line in enumerate(lines):
+                    if idx == 0:
+                        actual_y = text_y + offset_y
+                        draw.text((text_x + offset_x, actual_y), line, fill=text_color, font=font)
+                        text_y = actual_y + line_height
+                    else:
+                        draw.text((text_x, text_y), line, fill=text_color, font=font)
+                        text_y += line_height
+
             if excel_fields.get("hyperlink", {}).get("enabled") and excel_data.get("hyperlink"):
-                link_lines = self._wrap_text(f"Ссылка: {excel_data['hyperlink']}", font, panel_width - 20)
-                for line in link_lines:
-                    draw.text((text_x, text_y), line, fill=text_color, font=font)
-                    text_y += line_height
+                link_lines = self._wrap_text(f"Ссылка: {excel_data['hyperlink']}", font, text_wrap_width)
+                # Применяем смещение только к первой строке
+                offset_x, offset_y = element_offsets.get("hyperlink", (0, 0))
+                start_y = text_y
+                for idx, line in enumerate(link_lines):
+                    if idx == 0:
+                        actual_y = text_y + offset_y
+                        draw.text((text_x + offset_x, actual_y), line, fill=text_color, font=font)
+                        text_y = actual_y + line_height
+                    else:
+                        draw.text((text_x, text_y), line, fill=text_color, font=font)
+                        text_y += line_height
 
             # Добавляем разделитель
             text_y += 10
-            draw.line([(text_x, text_y), (panel_width - 10, text_y)], fill=text_color, width=1)
+            draw.line([(text_x, text_y), (separator_end_x, text_y)], fill=text_color, width=1)
             text_y += 15
-            
+
             # Добавляем фиксированные тексты
             print(f"DEBUG: Фиксированные тексты для {Path(image_path).name}: {fixed_texts}")
             print(f"DEBUG: Текущая позиция text_y={text_y}, высота панели={panel_area[3]}")
@@ -264,14 +287,19 @@ class ImageProcessor:
                     print(f"DEBUG: Добавляем текст #{i+1}: '{text}' на позицию y={text_y}")
                     # Применяем смещение для фиксированного текста
                     offset_x, offset_y = element_offsets.get(f"text_{i+1}", (0, 0))
-                    lines = self._wrap_text(text, font, panel_width - 20)
-                    current_y = text_y
-                    for line in lines:
-                        if current_y + line_height > panel_area[3]:
-                            print(f"WARNING: Текст выходит за границы панели! y={current_y}, граница={panel_area[3]}")
-                        draw.text((text_x + offset_x, current_y + offset_y), line, fill=text_color, font=font)
-                        current_y += line_height
-                    text_y += len(lines) * line_height
+                    lines = self._wrap_text(text, font, text_wrap_width)
+                    for idx, line in enumerate(lines):
+                        if idx == 0:
+                            actual_y = text_y + offset_y
+                            if actual_y + line_height > panel_area[3]:
+                                print(f"WARNING: Текст выходит за границы панели! y={actual_y}, граница={panel_area[3]}")
+                            draw.text((text_x + offset_x, actual_y), line, fill=text_color, font=font)
+                            text_y = actual_y + line_height
+                        else:
+                            if text_y + line_height > panel_area[3]:
+                                print(f"WARNING: Текст выходит за границы панели! y={text_y}, граница={panel_area[3]}")
+                            draw.text((text_x, text_y), line, fill=text_color, font=font)
+                            text_y += line_height
                 else:
                     print(f"DEBUG: Пустой текст пропущен")
 
@@ -284,10 +312,13 @@ class ImageProcessor:
                 stamp_width = int(self.stamp_image.width * stamp_scale)
                 stamp_height = int(self.stamp_image.height * stamp_scale)
 
-                # Ограничиваем шириной панели, если нужно
-                if stamp_width > panel_width - 20:
-                    ratio = (panel_width - 20) / stamp_width
-                    stamp_width = panel_width - 20
+                # Определяем максимальную ширину для печати в зависимости от позиции панели
+                max_stamp_width = panel_width - 20 if position == "left" else original.width - 20
+
+                # Ограничиваем шириной панели/изображения, если нужно
+                if stamp_width > max_stamp_width:
+                    ratio = max_stamp_width / stamp_width
+                    stamp_width = max_stamp_width
                     stamp_height = int(stamp_height * ratio)
 
                 stamp_resized = self.stamp_image.resize((stamp_width, stamp_height), Image.Resampling.LANCZOS)
@@ -298,7 +329,10 @@ class ImageProcessor:
                 # Добавляем печать независимо от проверки - она всегда должна быть видна
                 print(f"DEBUG: Добавляем печать на позицию y={stamp_y}, высота панели={panel_area[3]}, масштаб={stamp_scale}")
                 try:
-                    result.paste(stamp_resized, (text_x + int(offset_x), stamp_y + int(offset_y)), stamp_resized)
+                    # Преобразуем все координаты в int
+                    stamp_x = int(text_x + offset_x)
+                    stamp_y_final = int(stamp_y + offset_y)
+                    result.paste(stamp_resized, (stamp_x, stamp_y_final), stamp_resized)
                 except Exception as e:
                     print(f"DEBUG: Ошибка вставки печати: {e}")
             
@@ -424,6 +458,10 @@ class ImageProcessor:
                 if excel_fields.get("supplier", {}).get("enabled") and excel_data.get("supplier"):
                     panel_height += line_height * 2
 
+                # Гиперссылка
+                if excel_fields.get("hyperlink", {}).get("enabled") and excel_data.get("hyperlink"):
+                    panel_height += line_height
+
                 # Разделитель
                 panel_height += 5
 
@@ -474,6 +512,12 @@ class ImageProcessor:
                 draw.text((text_x, text_y), f"Поставщик:", fill=text_color, font=font)
                 text_y += line_height
                 draw.text((text_x, text_y), supplier, fill=text_color, font=font)
+                text_y += line_height
+
+            # Гиперссылка
+            if excel_fields.get("hyperlink", {}).get("enabled") and excel_data.get("hyperlink"):
+                hyperlink_text = excel_data['hyperlink'][:35] + "..." if len(excel_data['hyperlink']) > 35 else excel_data['hyperlink']
+                draw.text((text_x, text_y), f"Ссылка: {hyperlink_text}", fill=text_color, font=font)
                 text_y += line_height
 
             # Фиксированные тексты
@@ -570,6 +614,8 @@ class ImageProcessor:
                     panel_height += line_height
                 if excel_fields.get("supplier", {}).get("enabled") and excel_data.get("supplier"):
                     panel_height += line_height * 2
+                if excel_fields.get("hyperlink", {}).get("enabled") and excel_data.get("hyperlink"):
+                    panel_height += line_height
                 panel_height += 5
 
                 for text in fixed_texts:
@@ -616,6 +662,13 @@ class ImageProcessor:
                 element_positions["supplier_label"] = (text_x, text_y, "Поставщик:", font_size)
                 text_y += line_height
                 element_positions["supplier_value"] = (text_x, text_y, supplier, font_size)
+                text_y += line_height
+
+            # Гиперссылка
+            if excel_fields.get("hyperlink", {}).get("enabled") and excel_data.get("hyperlink"):
+                hyperlink_text = excel_data['hyperlink'][:40] + "..." if len(excel_data['hyperlink']) > 40 else excel_data['hyperlink']
+                text_content = f"Ссылка: {hyperlink_text}"
+                element_positions["hyperlink"] = (text_x, text_y, text_content, font_size)
                 text_y += line_height
 
             # Фиксированные тексты

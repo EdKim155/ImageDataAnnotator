@@ -635,7 +635,16 @@ class MainWindow(QMainWindow):
         self._setup_tray()
         self._connect_signals()  # Подключаем сигналы ДО загрузки настроек
         self._load_settings()
-    
+
+    def _get_contrast_text_color(self, bg_color: str) -> str:
+        """Вычисляет контрастный цвет текста для заданного цвета фона."""
+        # Парсим hex цвет
+        color = QColor(bg_color)
+        # Вычисляем яркость по формуле: (R * 299 + G * 587 + B * 114) / 1000
+        brightness = (color.red() * 299 + color.green() * 587 + color.blue() * 114) / 1000
+        # Если яркость > 128, используем черный текст, иначе белый
+        return "#000000" if brightness > 128 else "#ffffff"
+
     def _setup_ui(self):
         """Настройка интерфейса."""
         self.setWindowTitle("Image Data Annotator")
@@ -999,7 +1008,8 @@ class MainWindow(QMainWindow):
         # Цвет фона
         g3_layout.addWidget(QLabel("Цвет фона:"), 1, 0)
         self.bg_color_btn = QPushButton("Выбрать")
-        self.bg_color_btn.setStyleSheet(f"background-color: {self._bg_color}; border: 1px solid #ced4da; border-radius: 4px;")
+        text_color = self._get_contrast_text_color(self._bg_color)
+        self.bg_color_btn.setStyleSheet(f"background-color: {self._bg_color}; color: {text_color}; border: 1px solid #ced4da; border-radius: 4px;")
         self.bg_color_btn.setFixedWidth(100)
         self.bg_color_btn.clicked.connect(self._choose_bg_color)
         g3_layout.addWidget(self.bg_color_btn, 1, 1)
@@ -1213,11 +1223,10 @@ class MainWindow(QMainWindow):
             else:
                 self._is_dark_mode = False
 
-            self.source_folder_edit.setText(s.get("paths", "source_folder", default=""))
-            self.output_folder_edit.setText(s.get("paths", "output_folder", default=""))
-            self.excel_file_edit.setText(s.get("paths", "excel_file", default=""))
-            self.stamp_file_edit.setText(s.get("paths", "stamp_file", default=""))
-
+            # ВАЖНО: Загружаем индексы столбцов ПЕРЕД путями к файлам!
+            # Это необходимо, потому что setText для excel_file_edit триггерит _on_excel_changed,
+            # который читает значения из SpinBox'ов. Если загрузить пути раньше, будут использованы
+            # значения по умолчанию вместо загруженных из настроек.
             self.inn_checkbox.setChecked(s.get("excel_fields", "inn", "enabled", default=True))
             self.inn_column.setValue(s.get("excel_fields", "inn", "column", default=22))
             self.kpp_checkbox.setChecked(s.get("excel_fields", "kpp", "enabled", default=True))
@@ -1226,6 +1235,12 @@ class MainWindow(QMainWindow):
             self.supplier_column.setValue(s.get("excel_fields", "supplier", "column", default=19))
             self.hyperlink_checkbox.setChecked(s.get("excel_fields", "hyperlink", "enabled", default=False))
             self.hyperlink_column.setValue(s.get("excel_fields", "hyperlink", "column", default=23))
+
+            # Теперь загружаем пути к файлам (это может триггерить _on_excel_changed)
+            self.source_folder_edit.setText(s.get("paths", "source_folder", default=""))
+            self.output_folder_edit.setText(s.get("paths", "output_folder", default=""))
+            self.excel_file_edit.setText(s.get("paths", "excel_file", default=""))
+            self.stamp_file_edit.setText(s.get("paths", "stamp_file", default=""))
 
             self.text1_checkbox.setChecked(s.get("fixed_texts", "text1", "enabled", default=True))
             self.text1_edit.setText(s.get("fixed_texts", "text1", "value", default="Цена с НДС с учетом доставки"))
@@ -1250,7 +1265,8 @@ class MainWindow(QMainWindow):
 
             self.panel_width.setValue(s.get("output", "panel_width", default=300))
             self._bg_color = s.get("output", "background_color", default="#FFFFFF")
-            self.bg_color_btn.setStyleSheet(f"background-color: {self._bg_color}; border: 1px solid #ced4da; border-radius: 4px;")
+            text_color = self._get_contrast_text_color(self._bg_color)
+            self.bg_color_btn.setStyleSheet(f"background-color: {self._bg_color}; color: {text_color}; border: 1px solid #ced4da; border-radius: 4px;")
             self.font_size.setValue(s.get("output", "font_size", default=12))
 
             self.thread_count.setValue(s.get("performance", "thread_count", default=0))
@@ -1420,8 +1436,9 @@ class MainWindow(QMainWindow):
         color = QColorDialog.getColor(QColor(self._bg_color), self, "Выберите цвет фона")
         if color.isValid():
             self._bg_color = color.name()
+            text_color = self._get_contrast_text_color(self._bg_color)
             self.bg_color_btn.setStyleSheet(
-                f"background-color: {self._bg_color}; border: 1px solid #ced4da; border-radius: 4px;"
+                f"background-color: {self._bg_color}; color: {text_color}; border: 1px solid #ced4da; border-radius: 4px;"
             )
     
     def _on_source_changed(self, path: str):
@@ -1457,6 +1474,7 @@ class MainWindow(QMainWindow):
                         "inn": self.inn_column.value(),
                         "hyperlink": self.hyperlink_column.value()
                     }
+                    print(f"DEBUG _on_excel_changed: Индексы столбцов = {columns}")
                     success, msg = self.excel_reader.parse(columns)
                     if success:
                         count = self.excel_reader.get_record_count()
@@ -1480,6 +1498,19 @@ class MainWindow(QMainWindow):
     
     def _get_processor_settings(self) -> Dict:
         """Получение настроек для процессора."""
+        # Получаем смещения элементов из интерактивного превью
+        element_offsets = {}
+        if hasattr(self, 'interactive_preview'):
+            offsets = self.interactive_preview.getOffsets()
+            # Конвертируем в формат для процессора
+            element_offsets = {name: list(offset) for name, offset in offsets.items()}
+
+        # Если смещений нет в превью, загружаем из сохраненных настроек
+        if not element_offsets:
+            saved_offsets = self.settings.get("element_offsets", default={})
+            if saved_offsets:
+                element_offsets = saved_offsets
+
         return {
             "panel_width": self.panel_width.value(),
             "position": "left" if self.position_left.isChecked() else "bottom",
@@ -1494,7 +1525,8 @@ class MainWindow(QMainWindow):
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
                 "supplier": {"enabled": self.supplier_checkbox.isChecked()},
                 "hyperlink": {"enabled": self.hyperlink_checkbox.isChecked()}
-            }
+            },
+            "element_offsets": element_offsets
         }
     
     def _get_fixed_texts(self) -> List[str]:
@@ -1675,6 +1707,7 @@ class MainWindow(QMainWindow):
             "inn": self.inn_column.value(),
             "hyperlink": self.hyperlink_column.value()
         }
+        print(f"DEBUG _start_processing: Индексы столбцов = {columns}")
         success, msg = self.excel_reader.parse(columns)
         if not success:
             QMessageBox.critical(self, "Ошибка Excel", msg)
@@ -1700,7 +1733,12 @@ class MainWindow(QMainWindow):
             if not excel_data:
                 self._log(f"SKIP: Нет данных для {Path(img_path).name}")
                 continue
-            
+
+            # DEBUG: Выводим первые 3 файла
+            if len(tasks) < 3:
+                print(f"DEBUG Task {len(tasks)+1}: {Path(img_path).name}")
+                print(f"  Excel data: supplier={excel_data.get('supplier', '')[:40]}, inn={excel_data.get('inn', '')}, kpp={excel_data.get('kpp', '')}")
+
             output_path = output_folder / (Path(img_path).stem + output_ext)
             tasks.append(ProcessingTask(
                 image_path=img_path,
