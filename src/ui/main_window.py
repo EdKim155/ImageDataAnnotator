@@ -1488,7 +1488,7 @@ class MainWindow(QMainWindow):
             "text_color": "#000000",
             "format": "png" if self.format_png.isChecked() else ("jpg" if self.format_jpg.isChecked() else "pdf"),
             "stamp_enabled": self.stamp_checkbox.isChecked(),
-            "stamp_scale": 0.4,  # Фиксированный небольшой размер печати (40% от оригинала)
+            "stamp_scale": 0.25,  # Фиксированный небольшой размер печати (25% от оригинала)
             "excel_fields": {
                 "inn": {"enabled": self.inn_checkbox.isChecked()},
                 "kpp": {"enabled": self.kpp_checkbox.isChecked()},
